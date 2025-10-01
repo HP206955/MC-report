@@ -16,7 +16,7 @@ Key features:
 
 import os
 import warnings
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from dotenv import load_dotenv
 from dateutil.relativedelta import relativedelta
 from jira import JIRA
@@ -63,8 +63,10 @@ HISTORICAL_FIELD_MAP = {
     "Blocked_Days": lambda issue: "",  # TODO: Implement blocked days calculation
     "Blocked": lambda issue: "FALSE",  # TODO: Implement blocked status
     "Parent": lambda issue: issue["fields"]["parent"]["key"],
-    "done_datetime": lambda issue: issue["fields"]["resolutiondate"],
+    "done_datetime": lambda issue: datetime.strptime(issue["fields"]["resolutiondate"], "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f UTC")
+,
 }
+# Example format: 2025-09-29T13:36:31.190-0500
 
 
 def parse_date(date_string):
