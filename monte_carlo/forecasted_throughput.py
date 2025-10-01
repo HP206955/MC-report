@@ -1,5 +1,13 @@
-import pandas as pd
+"""
+This module handles the forecasting of team throughput in a Monte Carlo simulation context.
+It provides functionality for managing release cadences, calculating release dates, and
+predicting team throughput based on historical data. The module supports both weekly
+and biweekly release cycles for different teams and integrates with the Monte Carlo
+simulation system for accurate delivery forecasting.
+"""
+
 import datetime
+import pandas as pd
 from . import monte_carlo_simulation
 
 # Constants

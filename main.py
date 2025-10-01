@@ -2,7 +2,8 @@ from monte_carlo import forecasted_throughput
 from jira_connector import get_historical_data, get_pivoted_data
 
 if __name__ == "__main__":
-    # historical_data = get_historical_data.get()
+    historical_data = get_historical_data.get(max_fetch=200)
+    print(historical_data)
     # historical_data.to_csv("data/jira_issues_historical.csv")
     # pivoted_df = get_pivoted_data.get(historical_csv="data/jira_issues_historical.csv")
     # pivoted_df.to_csv("data/raw_format.csv")

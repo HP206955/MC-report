@@ -1,10 +1,26 @@
+"""
+This module handles the retrieval and processing of historical Jira issue data.
+
+It provides functionality to connect to Jira, fetch issues from specified projects,
+and transform the data into a structured format with consistent field mappings.
+The module supports various issue fields including ID, status, priority, versions,
+and custom fields, making it suitable for historical data analysis and reporting.
+
+Key features:
+- Connects to Jira using environment credentials
+- Retrieves issues from predefined project keys
+- Maps Jira fields to standardized column names
+- Handles date parsing and field transformations
+- Supports custom field mappings for specific data requirements
+"""
+
 import os
-from dotenv import load_dotenv
+import warnings
 from datetime import date, datetime
+from dotenv import load_dotenv
 from dateutil.relativedelta import relativedelta
 from jira import JIRA
 import pandas as pd
-import warnings
 
 # Constants
 RELEVANT_PROJECT_KEYS = [
@@ -111,16 +127,17 @@ def process_historical_data(issues):
     """Process historical data from issues."""
     data = []
     for issue in issues:
-        row = []
+        row = {}
         for field in HISTORICAL_FIELD_MAP:
+            field_func = HISTORICAL_FIELD_MAP[field]
             try:
-                value = HISTORICAL_FIELD_MAP[field](issue)
+                value = field_func(issue)
             except Exception:
                 value = None
-            row.append(value)
+            row[field] = value
         data.append(row)
 
-    return pd.DataFrame(data, columns=HISTORICAL_FIELD_MAP.keys())
+    return pd.DataFrame(data)
 
 
 def process_status_changes(issues):

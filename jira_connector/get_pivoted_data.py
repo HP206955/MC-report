@@ -1,3 +1,11 @@
+"""
+This module processes and transforms Jira issue data for Monte Carlo simulations.
+It provides functionality to pivot and format Jira issue data, mapping status categories
+and column names to standardized formats. The module handles filtering of valid issue
+types and transforms raw Jira data into a format suitable for throughput analysis
+and Monte Carlo simulations.
+"""
+
 import pandas as pd
 
 VALID_ISSUE_TYPES = ["Story", "Bug", "Defect", "Production Support"]
@@ -89,7 +97,9 @@ def get(historical_csv):
         pd.DataFrame: Processed and pivoted dataframe
     """
     # Read and process data
-    df = pd.read_csv(historical_csv, parse_dates=["Status Change Date"], low_memory=False)
+    df = pd.read_csv(
+        historical_csv, parse_dates=["Status Change Date"], low_memory=False
+    )
     df = filter_and_transform_data(df.copy())
     historical_df = df.copy()
     # Create pivot table
