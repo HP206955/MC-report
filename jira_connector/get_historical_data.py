@@ -115,7 +115,11 @@ def fetch_jira_issues(jira, base_date, max_fetch=None):
             fields="*all",
             expand="changelog",
             nextPageToken=next_page_token,
-            maxResults=chunk_size,
+            maxResults=(
+                min(chunk_size, max_fetch - len(all_issues))
+                if max_fetch
+                else chunk_size
+            ),
             json_result=True,
         )
 
@@ -132,7 +136,6 @@ def fetch_jira_issues(jira, base_date, max_fetch=None):
             break
 
         next_page_token = issues["nextPageToken"]
-
     return all_issues
 
 
@@ -183,7 +186,7 @@ def get(max_fetch=None):
         max_fetch: Limit number of tickets fetched
 
     Returns:
-        pd.DataFrame: Processed and pivoted dataframe
+        pd.DataFrame: Processed dataframe
     """
     jira = setup_jira_connection()
     print("Connected to Jira successfully!")
