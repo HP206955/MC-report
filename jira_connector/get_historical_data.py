@@ -19,7 +19,7 @@ import warnings
 from datetime import date, datetime, timezone
 from dotenv import load_dotenv
 from dateutil.relativedelta import relativedelta
-from jira import JIRA
+from jira import JIRA, exceptions
 import pandas as pd
 
 # Constants
@@ -63,10 +63,12 @@ HISTORICAL_FIELD_MAP = {
     "Blocked_Days": lambda issue: "",  # TODO: Implement blocked days calculation
     "Blocked": lambda issue: "FALSE",  # TODO: Implement blocked status
     "Parent": lambda issue: issue["fields"]["parent"]["key"],
-    "done_datetime": lambda issue: datetime.strptime(issue["fields"]["resolutiondate"], "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f UTC")
-,
+    "done_datetime": lambda issue: datetime.strptime(
+        issue["fields"]["resolutiondate"], "%Y-%m-%dT%H:%M:%S.%f%z"
+    )
+    .replace(tzinfo=timezone.utc)
+    .strftime("%Y-%m-%d %H:%M:%S.%f UTC"),
 }
-# Example format: 2025-09-29T13:36:31.190-0500
 
 
 def parse_date(date_string):
@@ -78,13 +80,22 @@ def setup_jira_connection():
     """Initialize and return JIRA connection."""
     load_dotenv()
     warnings.filterwarnings("ignore", message="Unverified HTTPS request")
+    jira_url = os.getenv("JIRA_URL")
+    user_id = os.getenv("USER_ID")
+    api_key = os.getenv("API_KEY")
+    if not (jira_url and user_id and api_key):
+        raise ValueError("JIRA_URL, USER_ID and API_KEY must be set in environment")
 
     jira_options = {"verify": False}
-    return JIRA(
-        options=jira_options,
-        server=os.getenv("JIRA_URL"),
-        basic_auth=(os.getenv("USER_ID"), os.getenv("API_KEY")),
-    )
+    try:
+        jira = JIRA(
+            options=jira_options,
+            server=jira_url,
+            basic_auth=(user_id, api_key),
+        )
+    except exceptions.JIRAError as e:
+        raise RuntimeError("Failed to authenticate/connect to Jira") from e
+    return jira
 
 
 def fetch_jira_issues(jira, base_date, max_fetch=None):
@@ -104,7 +115,11 @@ def fetch_jira_issues(jira, base_date, max_fetch=None):
             fields="*all",
             expand="changelog",
             nextPageToken=next_page_token,
-            maxResults=chunk_size,
+            maxResults=(
+                min(chunk_size, max_fetch - len(all_issues))
+                if max_fetch
+                else chunk_size
+            ),
             json_result=True,
         )
 
@@ -121,7 +136,6 @@ def fetch_jira_issues(jira, base_date, max_fetch=None):
             break
 
         next_page_token = issues["nextPageToken"]
-
     return all_issues
 
 
@@ -172,7 +186,7 @@ def get(max_fetch=None):
         max_fetch: Limit number of tickets fetched
 
     Returns:
-        pd.DataFrame: Processed and pivoted dataframe
+        pd.DataFrame: Processed dataframe
     """
     jira = setup_jira_connection()
     print("Connected to Jira successfully!")

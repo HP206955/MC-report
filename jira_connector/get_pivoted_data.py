@@ -8,6 +8,43 @@ and Monte Carlo simulations.
 
 import pandas as pd
 
+RELEVANT_PROJECT_KEYS = [
+    "PS2",
+    "ITE",
+    "PLE",
+    "ITP",
+    "ORT",
+    "CUS",
+    "PER",
+    "MOB",
+    "ORC",
+    "OSI",
+    "PRD",
+]
+
+RELEVANT_FIELD_MAP = [
+    "ID",
+    "Link",
+    "Title",
+    "Backlog",
+    "Current_Status_Category",
+    "Item_Rank",
+    "Updated",
+    "Issue_Type",
+    "Priority",
+    "Fix_versions",
+    "Components",
+    "Assignee",
+    "Reporter",
+    "Project",
+    "Resolution",
+    "Labels",
+    "Blocked_Days",
+    "Blocked",
+    "Parent",
+    "done_datetime",
+]
+
 VALID_ISSUE_TYPES = ["Story", "Bug", "Defect", "Production Support"]
 
 COLUMN_NAME_MAPPING = {
@@ -19,6 +56,7 @@ COLUMN_NAME_MAPPING = {
     "In QA": "In_QA",
     "Done": "Done",
 }
+
 STATUS_CATEGORY_MAPPING = {
     "Backlog": "Backlog",
     "Selected for Development": "Backlog",
@@ -54,6 +92,8 @@ STATUS_CATEGORY_MAPPING = {
 
 def filter_and_transform_data(df):
     """Filter and transform the dataframe with initial conditions."""
+    df = df[df["Project"].isin(RELEVANT_PROJECT_KEYS)]
+    df = df[RELEVANT_FIELD_MAP]
     df = df[df["Issue_Type"].isin(VALID_ISSUE_TYPES)]
     df["Current_Status_Category"] = df["Current_Status_Category"].replace(
         STATUS_CATEGORY_MAPPING
