@@ -15,27 +15,11 @@ Key features:
 """
 
 import os
-import warnings
 from datetime import date, datetime, timezone
-from dotenv import load_dotenv
 from dateutil.relativedelta import relativedelta
-from jira import JIRA, exceptions
 import pandas as pd
-
-# Constants
-RELEVANT_PROJECT_KEYS = [
-    "PS2",
-    "ITE",
-    "PLE",
-    "ITP",
-    "ORT",
-    "CUS",
-    "PER",
-    "MOB",
-    "ORC",
-    "OSI",
-    "PRD",
-]
+import requests
+from requests.auth import HTTPBasicAuth
 
 HISTORICAL_FIELD_MAP = {
     "ID": lambda issue: issue["key"],
@@ -76,53 +60,37 @@ def parse_date(date_string):
     return datetime.strptime(date_string.split("T")[0], "%Y-%m-%d").date()
 
 
-def setup_jira_connection():
-    """Initialize and return JIRA connection."""
-    load_dotenv()
-    warnings.filterwarnings("ignore", message="Unverified HTTPS request")
-    jira_url = os.getenv("JIRA_URL")
-    user_id = os.getenv("USER_ID")
-    api_key = os.getenv("API_KEY")
-    if not (jira_url and user_id and api_key):
-        raise ValueError("JIRA_URL, USER_ID and API_KEY must be set in environment")
-
-    jira_options = {"verify": False}
-    try:
-        jira = JIRA(
-            options=jira_options,
-            server=jira_url,
-            basic_auth=(user_id, api_key),
-        )
-    except exceptions.JIRAError as e:
-        raise RuntimeError("Failed to authenticate/connect to Jira") from e
-    return jira
-
-
-def fetch_jira_issues(jira, base_date, max_fetch=None):
+def fetch_jira_issues(base_date, max_fetch=None):
     """Fetch issues from JIRA using pagination."""
-    jql_query = (
-        f'project in ({",".join(RELEVANT_PROJECT_KEYS)}) '
-        f'AND updated >= "{base_date}" order by updated DESC'
-    )
+    jql_query = f'updated >= "{base_date}" order by updated DESC'
 
     all_issues = []
     chunk_size = 100
     next_page_token = None
 
     while True:
-        issues = jira.enhanced_search_issues(
-            jql_query,
-            fields="*all",
-            expand="changelog",
-            nextPageToken=next_page_token,
-            maxResults=(
+        query = {
+            "jql": jql_query,
+            "nextPageToken": next_page_token,
+            "maxResults": (
                 min(chunk_size, max_fetch - len(all_issues))
                 if max_fetch
                 else chunk_size
             ),
-            json_result=True,
+            "fields": "*all",
+            "expand": "changelog",
+        }
+        auth = HTTPBasicAuth(os.getenv("USER_ID"), os.getenv("API_KEY"))
+        headers = {"Accept": "application/json"}
+        issues = requests.request(
+            "GET",
+            f"{os.getenv("JIRA_URL")}/rest/api/2/search/jql",
+            headers=headers,
+            params=query,
+            auth=auth,
+            verify=False,
         )
-
+        issues = issues.json()
         batch = issues["issues"]
         all_issues.extend(batch)
         print(f"Retrieved {len(batch)} issues. Total: {len(all_issues)}")
@@ -136,6 +104,7 @@ def fetch_jira_issues(jira, base_date, max_fetch=None):
             break
 
         next_page_token = issues["nextPageToken"]
+
     return all_issues
 
 
@@ -188,17 +157,16 @@ def get(max_fetch=None):
     Returns:
         pd.DataFrame: Processed dataframe
     """
-    jira = setup_jira_connection()
-    print("Connected to Jira successfully!")
 
     base_date = date.today() - relativedelta(years=1, months=6)
     print(f"Fetching tickets updated since {base_date}...")
 
-    issues = fetch_jira_issues(jira, base_date, max_fetch)
+    issues = fetch_jira_issues(base_date, max_fetch)
 
     historical_df = process_historical_data(issues)
     status_change_df = process_status_changes(issues)
 
     result_df = historical_df.merge(status_change_df, on="ID", how="left")
     print(f"Total unique issues: {len(result_df['ID'].unique())}")
+
     return result_df
