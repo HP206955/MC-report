@@ -43,6 +43,9 @@ RELEVANT_FIELD_MAP = [
     "Blocked",
     "Parent",
     "done_datetime",
+    "Status Change Date",
+    "Status Change From",
+    "Status Change To",
 ]
 
 VALID_ISSUE_TYPES = ["Story", "Bug", "Defect", "Production Support"]
@@ -93,8 +96,14 @@ STATUS_CATEGORY_MAPPING = {
 def filter_and_transform_data(df):
     """Filter and transform the dataframe with initial conditions."""
     df = df[df["Project"].isin(RELEVANT_PROJECT_KEYS)]
+
     df = df[RELEVANT_FIELD_MAP]
+
     df = df[df["Issue_Type"].isin(VALID_ISSUE_TYPES)]
+
+    base_date = pd.Timestamp.today() - pd.DateOffset(months=18)
+    df = df[df["Updated"] >= base_date]
+
     df["Current_Status_Category"] = df["Current_Status_Category"].replace(
         STATUS_CATEGORY_MAPPING
     )
@@ -138,7 +147,7 @@ def get(historical_csv):
     """
     # Read and process data
     df = pd.read_csv(
-        historical_csv, parse_dates=["Status Change Date"], low_memory=False
+        historical_csv, parse_dates=["Status Change Date", "Updated"], low_memory=False
     )
     df = filter_and_transform_data(df.copy())
     historical_df = df.copy()
