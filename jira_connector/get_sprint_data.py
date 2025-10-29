@@ -203,8 +203,6 @@ def get():
                         issue.Story_Points if pd.notnull(issue.Story_Points) else 0
                     )
                 change_log = json.loads(issue.Change_Log)
-
-                decided_added_or_removed = False
                 for history in change_log["histories"]:
                     for item in history["items"]:
                         if item["field"] == "Sprint":
@@ -219,7 +217,6 @@ def get():
                                 else:
                                     if issue.ID not in initial_issues:
                                         added_issues.add(issue.ID)
-                                decided_added_or_removed = True
                                 break
 
                             sprint_removed = set(item["fromString"].split(", ")) - set(
@@ -230,10 +227,7 @@ def get():
                                 and history_created_dt >= sprint_start_dt
                             ):
                                 removed_issues.add(issue.ID)
-                            decided_added_or_removed = True
                             break
-                    if decided_added_or_removed:
-                        break
                 else:
                     if issue not in added_issues and issue not in initial_issues:
                         backlog_dt = _to_dt(issue.Backlog)
@@ -251,8 +245,6 @@ def get():
                 for issue in group.itertuples()
                 if issue.ID in initial_issues and pd.notnull(issue.Story_Points)
             )
-            if sprint == "8246":
-                print("init", initial_issues)
             # print(initial_issues)
             sprint_data["Added"] = len(added_issues)
             sprint_data["Added_Points"] = sum(
@@ -261,15 +253,13 @@ def get():
                 if issue.ID in added_issues and pd.notnull(issue.Story_Points)
             )
             if sprint == "8246":
-                print("added", added_issues)
+                print("Added Issues in Sprint 8246:", added_issues)
             sprint_data["Removed"] = len(removed_issues)
             sprint_data["Removed_Points"] = sum(
                 issue.Story_Points
                 for issue in group.itertuples()
                 if issue.ID in removed_issues and pd.notnull(issue.Story_Points)
             )
-            if sprint == "8246":
-                print("rm", removed_issues)
             # print(removed_issues)
             by_ticket_counts.append(sprint_data)
         except KeyError:

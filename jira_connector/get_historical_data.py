@@ -73,8 +73,8 @@ def fetch_jira_issues(base_date, max_fetch=None):
     """Fetch issues from JIRA using pagination."""
     load_dotenv()
 
-    jql_query = f'project in ("DGTL", "DAP") AND updated >= "{base_date}" order by updated DESC'
-
+    # jql_query = f'project in ("DGTL", "DAP") AND updated >= "{base_date}" order by updated DESC'
+    jql_query = f'key = "DAP-1618" AND updated >= "{base_date}" order by updated DESC'
     all_issues = []
     chunk_size = 100
     next_page_token = None
@@ -102,6 +102,7 @@ def fetch_jira_issues(base_date, max_fetch=None):
             verify=False,
         )
         issues = issues.json()
+        print(issues)
         batch = issues["issues"]
         all_issues.extend(batch)
         print(f"Retrieved {len(batch)} issues. Total: {len(all_issues)}")
