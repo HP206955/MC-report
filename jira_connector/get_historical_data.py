@@ -14,12 +14,18 @@ Key features:
 - Supports custom field mappings for specific data requirements
 """
 
+import json
 import os
+from dotenv import load_dotenv
+
 from datetime import date, datetime, timezone
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 HISTORICAL_FIELD_MAP = {
     "ID": lambda issue: issue["key"],
@@ -52,6 +58,9 @@ HISTORICAL_FIELD_MAP = {
     )
     .replace(tzinfo=timezone.utc)
     .strftime("%Y-%m-%d %H:%M:%S.%f UTC"),
+    "Sprints_JSON": lambda issue: json.dumps(issue['fields']['customfield_10005']),
+    "Story_Points": lambda issue: issue["fields"]["customfield_10006"],
+    "Change_Log": lambda issue: json.dumps(issue["changelog"]),
 }
 
 
@@ -62,7 +71,9 @@ def parse_date(date_string):
 
 def fetch_jira_issues(base_date, max_fetch=None):
     """Fetch issues from JIRA using pagination."""
-    jql_query = f'updated >= "{base_date}" order by updated DESC'
+    load_dotenv()
+
+    jql_query = f'project in ("DGTL", "DAP") AND updated >= "{base_date}" order by updated DESC'
 
     all_issues = []
     chunk_size = 100
@@ -84,7 +95,7 @@ def fetch_jira_issues(base_date, max_fetch=None):
         headers = {"Accept": "application/json"}
         issues = requests.request(
             "GET",
-            f"{os.getenv("JIRA_URL")}/rest/api/2/search/jql",
+            f"{os.getenv("JIRA_URL")}/rest/api/3/search/jql",
             headers=headers,
             params=query,
             auth=auth,
@@ -132,17 +143,24 @@ def process_status_changes(issues):
     for issue in issues:
         for history in issue["changelog"]["histories"]:
             for item in history["items"]:
-                if item["field"] != "status":
-                    continue
-
-                status_changes.append(
-                    {
-                        "ID": issue["key"],
-                        "Status Change Date": parse_date(history["created"]),
-                        "Status Change From": item["fromString"],
-                        "Status Change To": item["toString"],
-                    }
-                )
+                if item["field"] == "status":
+                    status_changes.append(
+                        {
+                            "ID": issue["key"],
+                            "Status Change Date": parse_date(history["created"]),
+                            "Status Change From": item["fromString"],
+                            "Status Change To": item["toString"],
+                        }
+                    )
+                # if item["field"] == "Sprint":
+                #     status_changes.append(
+                #         {
+                #             "ID": issue["key"],
+                #             "Sprint Change Date": parse_date(history["created"]),
+                #             "Sprint Change From": item["fromString"],
+                #             "Sprint Change To": item["toString"],
+                #         }
+                #     )
 
     return pd.DataFrame(status_changes)
 
